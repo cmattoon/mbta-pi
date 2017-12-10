@@ -49,7 +49,14 @@ class Vehicle(MBTAClient):
             print("------")
             
     def isBusRoute(self):
-        return self.routeId.isdigit()
+        return str(self.routeId)[0].isdigit()
+    
+    def isCommuterRail(self):
+        return self.routeId.startswith('CR-')
+
+    def isSubway(self):
+        subway_routes = ['Red', 'Blue', 'Orange']
+        return any([self.routeId.startswith(name) for name in subway_routes])
     
     def getAttr(self, key):
         return self.data['attributes'][key]
@@ -59,6 +66,15 @@ class Vehicle(MBTAClient):
 
     def getPositionAndHeading(self):
         return self.getPosition() + (self.getAttr('bearing'))
+    def prettyRoute(self):
+        colors = {'Red': "\033[31m", 'Orange': "\033[33m",
+                  'Green': "\033[92m", 'Green-A': "\033[92m", 'Green-B': "\033[92m",
+                  'Green-C': "\033[92m", 'Green-D': "\033[92m", 'Green-E': "\033[92m",
+                  'Blue': "\033[34m"}
+        try:
+            return "{}{}\033[0m".format(colors[self.routeId], self.routeId)
+        except KeyError:
+            return "?? {}".format(self.routeId)
 
     def prettyStatus(self):
         colors = {

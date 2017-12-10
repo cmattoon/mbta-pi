@@ -7,10 +7,10 @@ from mbtapi.util import ptable
 def print_vehicle_status():
     tbl_data = []
     for vehicle in Vehicle.getAll():
-        if not vehicle.isBusRoute():
+        if vehicle.isSubway():
             tbl_data.append([
                 vehicle.id,
-                vehicle.routeId,
+                vehicle.prettyRoute(),
                 vehicle.prettyStatus(),
                 vehicle.stopId,
                 vehicle.directionId

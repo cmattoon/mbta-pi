@@ -47,6 +47,10 @@ class Vehicle(MBTAClient):
             print("\033[31m{}\033[0m".format(e))
             print(self.data)
             print("------")
+            
+    def isBusRoute(self):
+        return self.routeId.isdigit()
+    
     def getAttr(self, key):
         return self.data['attributes'][key]
 
@@ -55,3 +59,14 @@ class Vehicle(MBTAClient):
 
     def getPositionAndHeading(self):
         return self.getPosition() + (self.getAttr('bearing'))
+
+    def prettyStatus(self):
+        colors = {
+            'STOPPED_AT': "\033[31m",
+            'IN_TRANSIT_TO': "\033[33m",
+            'INCOMING_AT': "\033[32m",
+        }
+        try:
+            return "{}{}\033[0m".format(colors[self.status], self.status)
+        except KeyError:
+            return "?? {}".format(self.status)

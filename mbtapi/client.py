@@ -6,15 +6,23 @@ import json
 
 class MBTAClient(object):
     ENDPOINT = ''
-
+    CACHE = {}
+    
     def __init__(self, *args, **kwargs):
         self.data = dict(kwargs)
 
-    def _fetch(self):
+    def _fetch(self, path='/', **params):
         """need to update to fetch only object-specific link"""
-        resp = requests.get(self.ENDPOINT)
-        if resp.ok:
-            return json.loads(resp.content.decode('UTF-8'))['data']
+        key = (self.ENDPOINT, path)
+        
+        try:
+            return self.CACHE[key]
+        
+        except KeyError:
+            resp = requests.get(self.ENDPOINT)
+            if resp.ok:
+                self.CACHE[key] = json.loads(resp.content.decode('UTF-8'))['data']
+                return self.CACHE[key]
         return resp
 
     @classmethod
@@ -22,10 +30,32 @@ class MBTAClient(object):
         c = cls()
         for obj in c._fetch():
             yield cls(**obj)
-
+            
+    def getAttr(self, key):
+        return self.data['attributes'][key]
+    
+    @classmethod
+    def getById(cls, search_id):
+        c = cls()
+        for obj in c._fetch():
+            obj = cls(**obj)
+            if obj.id == search_id:
+                return obj
+        return None
+    
 class Stop(MBTAClient):
     ENDPOINT = 'https://api-v3.mbta.com/stops'
 
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+
+        try:
+            self.id = self.data['id']
+            self.name = self.getAttr('name')
+            self.parentStation = self.data['relationships']['parent_station']
+        except KeyError:
+            pass
+        
 class Route(MBTAClient):
     ENDPOINT = 'https://api-v3.mbta.com/routes'
 
@@ -55,27 +85,38 @@ class Vehicle(MBTAClient):
         return self.routeId.startswith('CR-')
 
     def isSubway(self):
-        subway_routes = ['Red', 'Blue', 'Orange']
+        subway_routes = ['Red', 'Blue', 'Orange', 'Green']
         return any([self.routeId.startswith(name) for name in subway_routes])
     
-    def getAttr(self, key):
-        return self.data['attributes'][key]
-
     def getPosition(self):
         return self.getAttr('latitude'), self.getAttr('longitude')
 
     def getPositionAndHeading(self):
         return self.getPosition() + (self.getAttr('bearing'))
-    def prettyRoute(self):
+
+    def getRouteColor(self):
         colors = {'Red': "\033[31m", 'Orange': "\033[33m",
                   'Green': "\033[92m", 'Green-A': "\033[92m", 'Green-B': "\033[92m",
                   'Green-C': "\033[92m", 'Green-D': "\033[92m", 'Green-E': "\033[92m",
                   'Blue': "\033[34m"}
         try:
-            return "{}{}\033[0m".format(colors[self.routeId], self.routeId)
+            return colors[self.routeId]
+        except KeyError:
+            return ''
+
+    def prettyRoute(self):
+        color = self.getRouteColor()
+        try:
+            return "{}{}\033[0m".format(color, self.routeId)
         except KeyError:
             return "?? {}".format(self.routeId)
 
+    def prettyStopName(self):
+        return "{}{}\033[0m".format(
+            self.getRouteColor(),
+            Stop.getById(self.stopId).name
+        )
+        
     def prettyStatus(self):
         colors = {
             'STOPPED_AT': "\033[31m",
@@ -86,3 +127,4 @@ class Vehicle(MBTAClient):
             return "{}{}\033[0m".format(colors[self.status], self.status)
         except KeyError:
             return "?? {}".format(self.status)
+        
